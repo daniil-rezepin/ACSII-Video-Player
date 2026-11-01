@@ -29,6 +29,22 @@
         "--audio"
       ],
       "justMyCode": true
+    },
+    {
+      "name": "ASCII Video with sound and keyboard lighting",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/player.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "args": [
+        "${input:videoPath}",
+        "--color",
+        "truecolor",
+        "--audio",
+        "--keyboard"
+      ],
+      "justMyCode": true
     }
   ],
   "inputs": [

@@ -14,6 +14,8 @@ import cv2
 import numpy as np
 from colorama import just_fix_windows_console
 
+from backlight import KeyboardLight
+
 RAMP = " .:-=+*#%@"
 MODES = ("mono", "256", "truecolor")
 RESET = "\033[0m"
@@ -259,7 +261,7 @@ def decode(capture, fps):
         yield timestamp, frame
 
 
-def play(capture, audio, args):
+def play(capture, audio, light, args):
     fps = capture.get(cv2.CAP_PROP_FPS)
     if not math.isfinite(fps) or fps <= 0:
         fps = 30.0
@@ -276,6 +278,7 @@ def play(capture, audio, args):
         next_draw = 0.0
         previous_size = None
         dirty = True
+        lit = None
 
         while True:
             key = terminal.key()
@@ -310,6 +313,14 @@ def play(capture, audio, args):
                 if upcoming is None and elapsed >= current[0] + 1 / fps:
                     return
 
+            if light.active:
+                if current is not lit:
+                    light.show(current[1])
+                    lit = current
+                light.update(time.perf_counter())
+                if not light.active:  # the keyboard stopped responding
+                    dirty = True
+
             size = shutil.get_terminal_size((100, 30))
             dirty = dirty or size != previous_size
             if dirty or (
@@ -328,10 +339,10 @@ def play(capture, audio, args):
                     "off" if audio.mixer is None
                     else "muted" if audio.muted else "on"
                 )
-                status = (
-                    f"{state} {elapsed:.1f}s | {color} | audio {sound}"
-                    " | Space pause | C color | M mute | Q quit"
-                )
+                status = f"{state} {elapsed:.1f}s | {color} | audio {sound}"
+                if args.keyboard:
+                    status += f" | keys {'on' if light.active else 'off'}"
+                status += " | Space pause | C color | M mute | Q quit"
                 terminal.draw(lines, status, size)
                 previous_size = size
                 dirty = False
@@ -356,6 +367,11 @@ def arguments():
     )
     parser.add_argument("--audio", action="store_true", help="Enable sound")
     parser.add_argument("--volume", type=float, default=0.7)
+    parser.add_argument(
+        "--keyboard", action="store_true",
+        help="Match the keyboard backlight to the video "
+        "(ASUS TUF laptops on Windows)"
+    )
     parser.add_argument(
         "--width", type=int, default=0,
         help="Maximum columns; 0 automatically fits the terminal"
@@ -411,6 +427,7 @@ def main():
 
     capture = None
     audio = Audio(args.volume)
+    light = KeyboardLight()
     try:
         capture = cv2.VideoCapture(str(args.video))
         if not capture.isOpened():
@@ -420,7 +437,11 @@ def main():
             warning = audio.prepare(args.video)
             if warning:
                 print(warning, file=sys.stderr)
-        play(capture, audio, args)
+        if args.keyboard:
+            warning = light.open()
+            if warning:
+                print(warning, file=sys.stderr)
+        play(capture, audio, light, args)
         return 0
     except KeyboardInterrupt:
         return 130
@@ -428,6 +449,7 @@ def main():
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     finally:
+        light.close()
         audio.close()
         if capture is not None:
             capture.release()
