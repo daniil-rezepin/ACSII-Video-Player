@@ -23,6 +23,7 @@ python -m pip install -r requirements.txt
 | --- | --- |
 | `python player.py "media/video.mp4"` | Play with automatic color detection |
 | `python player.py "media/video.mp4" --color truecolor --audio` | Full color with sound |
+| `python player.py "media/video.mp4" --audio --keyboard` | Keyboard backlight follows the video's colors ([ASUS TUF laptops](#keyboard-lighting)) |
 | `python player.py "media/video.mp4" --color mono --width 100 --fps 20` | Black and white, smaller and lighter on slow terminals |
 | `python player.py "media/video.mp4" --invert` | For terminals with a light background |
 | `python player.py "media/video.mp4" --gamma 0.7` | Brighter image |
@@ -50,6 +51,7 @@ Click inside the terminal before using the controls.
 | `--color` | `auto` | `auto`, `mono`, `256`, or `truecolor` |
 | `--audio` | off | Play the video's sound (needs FFmpeg and pygame-ce) |
 | `--volume` | `0.7` | Audio volume from 0 to 1 |
+| `--keyboard` | off | Match the keyboard backlight to the video (ASUS TUF laptops on Windows) |
 | `--width` | `0` | Maximum width in characters; `0` fits the terminal |
 | `--fps` | `30` | Maximum screen refreshes per second; does not change playback speed |
 | `--cell-ratio` | `0.5` | Width-to-height ratio of one terminal character; adjust if the image looks stretched |
@@ -61,6 +63,8 @@ Click inside the terminal before using the controls.
 
 - Monochrome, 256-color, and 24-bit true-color output.
 - Optional audio from the video's first audio track.
+- Optional keyboard backlight that glows in the video's colors, like TV
+  ambient lighting (ASUS TUF laptops on Windows).
 - Pause/resume, mute, color switching, and quit controls.
 - Automatic resizing with character aspect-ratio correction.
 - Timestamp-based playback and late-frame dropping.
@@ -138,6 +142,27 @@ approximate: audio-device latency and unusual video timestamps can cause
 an offset. When timestamps are unavailable, playback falls back to the
 reported frame rate, which can be inaccurate for variable-frame-rate video.
 
+## Keyboard lighting
+
+With `--keyboard`, the keyboard backlight glows in the overall color of the
+scene while the video plays, like the ambient lighting on some TVs. Dark
+scenes dim it, and colors fade smoothly instead of flickering.
+
+It works on ASUS TUF laptops running Windows with Armoury Crate or MyASUS
+installed. It uses the ASUS ATKACPI driver that comes with them, so nothing
+extra needs installing and admin rights aren't needed. The lighting interface
+was checked on a TUF Gaming F15 (FX506HCB). These keyboards have one lighting
+zone, so the whole keyboard shows one color.
+
+- The status line shows `keys on` while the lighting is active.
+- On other laptops, or if the driver can't be reached, the video plays
+  normally with a warning.
+- When playback ends, the keyboard is set to white. Re-apply your usual
+  effect in Armoury Crate if it doesn't come back by itself.
+- To make the effect softer, more vivid, or brighter, change the numbers at
+  the top of `backlight.py` (`SMOOTHING`, `SATURATION_BOOST`,
+  `BRIGHTNESS_BOOST`, `EXIT_COLOR`).
+
 ## Troubleshooting
 
 - Use the integrated Terminal, not VS Code's Debug Console or Output panel.
@@ -158,8 +183,8 @@ python -m unittest discover -s tests -v
 
 ---
 
-`tests/test_player.py` checks the parts that don't need a real terminal or
-video file:
+The tests check the parts that don't need a real terminal, video file, or
+keyboard:
 
 | Test | What it checks |
 | --- | --- |
@@ -167,16 +192,24 @@ video file:
 | `test_truecolor_converts_bgr_to_rgb` | A red pixel (stored by OpenCV as BGR) produces a red escape code |
 | `test_fit_respects_both_dimensions` | Landscape and portrait videos both fit inside an 80×24 terminal |
 | `test_clock_excludes_pause` | Time spent paused is not counted (uses a fake clock) |
+| `test_packet_layout` | The keyboard driver message is built byte for byte as the driver expects |
+| `test_solid_frames` | Red, black, and white frames light the keyboard red, off, and white |
+| `test_vivid_pixels_decide_the_hue` | A small red area on a grey frame still turns the keyboard red |
+| `test_fades_between_colors_and_restores` | Colors fade instead of jumping, and the exit color is set at the end (uses a fake keyboard) |
+| `test_limits_update_rate` | The keyboard isn't updated more than 60 times a second |
+| `test_driver_errors_turn_lighting_off` | A keyboard error stops the lighting without stopping the video |
+| `test_missing_driver_gives_warning` | Laptops without the driver get a warning instead of a crash |
 
 ### Project files
 
 | File | Purpose |
 | --- | --- |
-| `player.py` | The whole player |
-| `tests/test_player.py` | Unit tests |
+| `player.py` | The player |
+| `backlight.py` | Keyboard lighting for `--keyboard` |
+| `tests/` | Unit tests |
 | `requirements.txt` | Video dependencies: NumPy, OpenCV, colorama |
 | `requirements-audio.txt` | The above plus pygame-ce for sound |
-| `.vscode/launch.json` | The F5 playback configurations |
+| `.vscode/launch.json` | The F5 playback configurations, including one with keyboard lighting |
 | `.vscode/tasks.json` | A "Run tests" task |
 | `.vscode/settings.json` | Uses `.venv`, enables the tests, and removes extra spacing between terminal lines |
 | `media/` | Put your videos here (ignored by Git, except its README) |
