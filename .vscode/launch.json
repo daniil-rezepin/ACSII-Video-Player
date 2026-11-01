@@ -1,0 +1,42 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ASCII Video",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/player.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "args": [
+        "${input:videoPath}",
+        "--color",
+        "truecolor"
+      ],
+      "justMyCode": true
+    },
+    {
+      "name": "ASCII Video with sound",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/player.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "args": [
+        "${input:videoPath}",
+        "--color",
+        "truecolor",
+        "--audio"
+      ],
+      "justMyCode": true
+    }
+  ],
+  "inputs": [
+    {
+      "id": "videoPath",
+      "type": "promptString",
+      "description": "Video path, without surrounding quotes",
+      "default": "media/video.mp4"
+    }
+  ]
+}
